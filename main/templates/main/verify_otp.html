@@ -1,0 +1,56 @@
+{% extends 'main/base.html' %}
+{% block title %}Verify OTP — UniSphere{% endblock %}
+{% block body %}
+
+<div class="auth-screen">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-orb">🎓</div>
+      <div class="logo-wordmark">UniSphere</div>
+    </div>
+    <div class="auth-card" style="text-align:center;">
+      <div style="font-size:2.8rem;margin-bottom:.5rem;">📬</div>
+      <h2>Verify Your Email</h2>
+      <p class="auth-sub">We sent a 6-digit OTP to <strong>{{ email }}</strong></p>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-error">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="{% url 'verify_otp' %}">
+        {% csrf_token %}
+        <div class="otp-inputs">
+          <input type="text" class="otp-input" name="otp1" maxlength="1" inputmode="numeric" required>
+          <input type="text" class="otp-input" name="otp2" maxlength="1" inputmode="numeric" required>
+          <input type="text" class="otp-input" name="otp3" maxlength="1" inputmode="numeric" required>
+          <input type="text" class="otp-input" name="otp4" maxlength="1" inputmode="numeric" required>
+          <input type="text" class="otp-input" name="otp5" maxlength="1" inputmode="numeric" required>
+          <input type="text" class="otp-input" name="otp6" maxlength="1" inputmode="numeric" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Verify & Continue →</button>
+      </form>
+      <p class="auth-footer" style="margin-top:1rem;">
+        Wrong email? <a href="{% url 'signup' %}">Go Back</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var inputs = document.querySelectorAll('.otp-input');
+  inputs.forEach(function(inp, i) {
+    inp.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g,'');
+      if (this.value && i < inputs.length - 1) inputs[i+1].focus();
+    });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value && i > 0) inputs[i-1].focus();
+    });
+  });
+  inputs[0].focus();
+});
+</script>
+{% endblock %}

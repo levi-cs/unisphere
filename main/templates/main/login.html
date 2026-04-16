@@ -1,0 +1,87 @@
+{% extends 'main/base.html' %}
+{% block title %}Login — UniSphere{% endblock %}
+{% block body %}
+{% load static %}
+
+<div class="auth-screen">
+  <div class="auth-container">
+
+    <div class="auth-logo">
+      <div class="logo-orb">🎓</div>
+      <div class="logo-wordmark">UniSphere</div>
+      <div class="logo-tagline">Official Student Portal</div>
+    </div>
+
+    <div class="auth-card">
+      <h2>Welcome Back</h2>
+      <p class="auth-sub">Sign in to continue your academic journey</p>
+
+      <div class="role-tabs">
+        <button type="button" class="role-tab active" id="tab-student" onclick="switchTab('student')">🎒 Student</button>
+        <button type="button" class="role-tab" id="tab-teacher" onclick="switchTab('teacher')">📖 Teacher</button>
+        <button type="button" class="role-tab" id="tab-admin" onclick="switchTab('admin')">⚙️ Admin</button>
+      </div>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-error">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="{% url 'login' %}" id="loginForm">
+        {% csrf_token %}
+        <input type="hidden" name="tab" id="tabField" value="student">
+
+        <div class="field">
+          <label id="id-label">STUDENT ID</label>
+          <div class="field-wrap">
+            <span class="field-icon">🪪</span>
+            <input type="text" name="student_id" id="login-id" placeholder="e.g. U18KG230099" autocomplete="off" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>PASSWORD</label>
+          <div class="field-wrap">
+            <span class="field-icon">🔒</span>
+            <input type="password" name="password" id="login-pass" placeholder="Enter your password" required>
+          </div>
+        </div>
+
+        <div class="forgot-link">
+          <a href="{% url 'forgot_password' %}">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Sign In →</button>
+      </form>
+
+      <p class="auth-footer">
+        Don't have an account? <a href="{% url 'signup' %}">Create Account</a>
+      </p>
+
+
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(role) {
+  document.querySelectorAll('.role-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('tab-' + role).classList.add('active');
+  document.getElementById('tabField').value = role;
+  var labels = { student: 'STUDENT ID', teacher: 'TEACHER ID', admin: 'ADMIN USERNAME' };
+  var placeholders = { student: 'e.g. U18CS001', teacher: 'e.g. TCH001', admin: 'e.g. admin' };
+  var names = { student: 'student_id', teacher: 'student_id', admin: 'username' };
+  document.getElementById('id-label').textContent = labels[role];
+  document.getElementById('login-id').placeholder = placeholders[role];
+  document.getElementById('login-id').name = names[role];
+}
+
+function quickFill(id, pass, role) {
+  switchTab(role);
+  document.getElementById('login-id').value = id;
+  document.getElementById('login-pass').value = pass;
+  document.getElementById('loginForm').submit();
+}
+</script>
+{% endblock %}

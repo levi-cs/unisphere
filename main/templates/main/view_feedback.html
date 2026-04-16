@@ -1,0 +1,19 @@
+{% extends 'main/base.html' %}
+
+{% block body %}
+<div style="padding:20px;">
+    <h2>Grievance & Feedback</h2>
+
+    {% for c in complaints %}
+        <div style="border:1px solid #ccc;padding:10px;margin-bottom:10px;">
+            <strong>{{ c.student.name }}</strong> ({{ c.student.student_id }})<br>
+            <b>{{ c.subject }}</b><br>
+            {{ c.message }}<br>
+            <small>{{ c.created }}</small><br>
+            <b>Status:</b> {{ c.status }}
+        </div>
+    {% empty %}
+        <p>No feedback available</p>
+    {% endfor %}
+</div>
+{% endblock %}

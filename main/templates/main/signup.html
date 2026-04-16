@@ -1,0 +1,94 @@
+{% extends 'main/base.html' %}
+{% block title %}Sign Up — UniSphere{% endblock %}
+{% block body %}
+
+<div class="auth-screen">
+  <div class="auth-container" style="max-width:500px;">
+
+    <div class="auth-logo">
+      <div class="logo-orb">🎓</div>
+      <div class="logo-wordmark">UniSphere</div>
+    </div>
+
+    <div class="auth-card">
+      <h2>Create Account</h2>
+      <p class="auth-sub">Register to access your student dashboard</p>
+
+      {% if errors %}
+        <div class="alert alert-error">
+          {% for field, msg in errors.items %}<div>• {{ msg }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="POST" action="{% url 'signup' %}">
+        {% csrf_token %}
+
+        <div class="field">
+          <label>FULL NAME</label>
+          <div class="field-wrap">
+            <span class="field-icon">👤</span>
+            <input type="text" name="name" value="{{ form_data.name|default:'' }}" placeholder="Enter your full name" required>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>STUDENT ID</label>
+            <div class="field-wrap">
+              <span class="field-icon">🪪</span>
+              <input type="text" name="student_id" value="{{ form_data.student_id|default:'' }}" placeholder="e.g. U18CS001" required>
+            </div>
+          </div>
+          <div class="field">
+            <label>EMAIL</label>
+            <div class="field-wrap">
+              <span class="field-icon">📧</span>
+              <input type="email" name="email" value="{{ form_data.email|default:'' }}" placeholder="you@college.edu" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>COURSE</label>
+            <div class="field-wrap">
+              <span class="field-icon">📚</span>
+              <input type="text" name="course" value="{{ form_data.course|default:'' }}" placeholder="e.g. B.Tech CSE">
+            </div>
+          </div>
+          <div class="field">
+            <label>SEMESTER</label>
+            <div class="field-wrap">
+              <span class="field-icon">📅</span>
+              <input type="number" name="semester" value="{{ form_data.semester|default:'' }}" placeholder="e.g. 3" min="1" max="10">
+            </div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>PASSWORD</label>
+            <div class="field-wrap">
+              <span class="field-icon">🔒</span>
+              <input type="password" name="password" placeholder="Min 8 characters" required>
+            </div>
+          </div>
+          <div class="field">
+            <label>CONFIRM PASSWORD</label>
+            <div class="field-wrap">
+              <span class="field-icon">🔒</span>
+              <input type="password" name="confirm_password" placeholder="Re-enter" required>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Account →</button>
+      </form>
+
+      <p class="auth-footer">
+        Already have an account? <a href="{% url 'login' %}">Sign In</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

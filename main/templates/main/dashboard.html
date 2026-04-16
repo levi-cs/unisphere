@@ -1,0 +1,710 @@
+{% extends 'main/base.html' %}
+{% load static %}
+{% block title %}Dashboard {{ avg_attendance }}% UniSphere{% endblock %}
+
+{% block body %}
+{% load static %}
+{% load custom_filters %}
+
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-orb" style="width:34px;height:34px;font-size:15px;border-radius:10px;">🎓</div>
+    <span class="wordmark">UniSphere</span>
+  </div>
+
+  <div class="nav-label">Main Menu</div>
+  <a href="{% url 'dashboard' %}" class="nav-item {% if section == 'overview' %}active{% endif %}">
+    <div class="nav-icon">🏠</div> Dashboard
+  </a>
+  <a href="{% url 'subjects' %}" class="nav-item {% if section == 'subjects' %}active{% endif %}">
+    <div class="nav-icon">📚</div> Subjects
+  </a>
+  <a href="{% url 'attendance' %}" class="nav-item {% if section == 'attendance' %}active{% endif %}">
+    <div class="nav-icon">📊</div> Attendance
+  </a>
+  <a href="{% url 'timetable' %}" class="nav-item {% if section == 'timetable' %}active{% endif %}">
+    <div class="nav-icon">🗓️</div> Timetable
+  </a>
+  <a href="{% url 'materials' %}" class="nav-item {% if section == 'materials' %}active{% endif %}">
+    <div class="nav-icon">📁</div> Materials
+  </a>
+  <div class="nav-label">Communication</div>
+  <a href="{% url 'notices' %}" class="nav-item {% if section == 'notices' %}active{% endif %}">
+    <div class="nav-icon">🔔</div> Notices
+    {% if notices %}<span class="nav-badge">{{ notices|length }}</span>{% endif %}
+  </a>
+  <!-- Announcements -->
+<a href="{% url 'announcements' %}" class="nav-item">
+    <div class="nav-icon">📢</div> Announcements
+</a>
+
+<!-- Grievance & Feedback -->
+{% if role == 'student' %}
+<a href="{% url 'feedback' %}" class="nav-item">
+    <div class="nav-icon">💬</div> Grievance & Feedback
+</a>
+<a href="{% url 'results' %}" class="nav-item {% if section == 'results' %}active{% endif %}">
+  📊 Results
+</a>
+{% endif %}
+
+{% if role == 'teacher' %}
+<a href="{% url 'view_feedback' %}" class="nav-item">
+    <div class="nav-icon">💬</div> Grievance & Feedback
+</a>
+{% endif %}
+
+  <div class="nav-label">Account</div>
+  <a href="{% url 'profile' %}" class="nav-item {% if section == 'profile' %}active{% endif %}">
+    <div class="nav-icon">👤</div> My Profile
+  </a>
+
+  {% if role == 'admin' %}
+  <div class="nav-label">Admin</div>
+  <a href="/admin/" class="nav-item">
+    <div class="nav-icon">⚙️</div> Admin Panel
+  </a>
+  {% endif %}
+
+  <div class="sidebar-footer">
+    <div class="user-card-mini">
+      <div class="avatar">
+        {% if role == 'student' %}{{ student.name|first|upper }}
+        {% elif role == 'teacher' %}{{ teacher.name|first|upper }}
+        {% else %}A{% endif %}
+      </div>
+      <div class="user-info">
+        <div class="uname">
+          {% if role == 'student' %}{{ student.name }}
+          {% elif role == 'teacher' %}{{ teacher.name }}
+          {% else %}Administrator{% endif %}
+        </div>
+        <div class="uid">
+          {% if role == 'student' %}{{ student.student_id }}
+          {% elif role == 'teacher' %}{{ teacher.teacher_id }}
+          {% else %}Admin{% endif %}
+        </div>
+      </div>
+      <a href="{% url 'logout' %}" class="logout-btn" title="Logout">⏻</a>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<div class="main-content" id="main-content">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" onclick="toggleSidebar()">☰</button>
+
+      <div>
+        <div class="page-heading">
+          <span class="greet" id="greeting-text">Hello,</span>
+          <span class="hname">
+            {% if role == 'student' %}{{ student.name|truncatechars:20 }}
+            {% elif role == 'teacher' %}{{ teacher.name|truncatechars:20 }}
+            {% else %}Admin{% endif %}
+          </span> 👋
+        </div>
+        <div class="page-sub" id="topbar-date">
+          {% if role == 'student' %}
+            {{ student.course.name }} &middot; Semester {{ student.semester.number }}
+          {% elif role == 'teacher' %}
+            {{ teacher.department }} &middot; Faculty
+          {% else %}
+            Administrator &middot; Full Access
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      {% if role == 'student' %}
+        <div class="chip chip-accent">{{ student.course.name }}</div>
+        <div class="chip chip-green">Sem {{ student.semester.number }}</div>
+      {% elif role == 'teacher' %}
+        <div class="chip chip-amber">Teacher</div>
+      {% else %}
+        <div class="chip chip-amber">Admin</div>
+      {% endif %}
+      <div class="avatar-sm">
+        {% if role == 'student' %}{{ student.name|first|upper }}
+        {% elif role == 'teacher' %}{{ teacher.name|first|upper }}
+        {% else %}A{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── OVERVIEW ── -->
+  {% if messages %}
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}" style="margin-bottom:1rem;">
+      {{ message }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if section == 'overview' %}
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-blue">📚</div>
+      <div class="stat-value">{{ subjects|length|default:"0" }}</div>
+      <div class="stat-label">Total Subjects</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-green">📊</div>
+      <div class="stat-value">
+        {% if attendance_data %}
+          {% with total=0 count=0 %}
+            {% for a in attendance_data %}{% endfor %}
+          {% endwith %}
+          —
+        {% else %}{{ avg_attendance }}%{% endif %}
+      </div>
+      <div class="stat-label">Avg Attendance</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-purple">📁</div>
+      <div class="stat-value">{{ materials_count|default:"0" }}</div>
+      <div class="stat-label">Study Materials</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-amber">🔔</div>
+      <div class="stat-value">{{ notices|length|default:"0" }}</div>
+      <div class="stat-label">Notices</div>
+    </div>
+  </div>
+
+  <div class="cards-row">
+    <!-- Recent Notices -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="icon">🔔</div> Recent Notices</div>
+        <a href="{% url 'notices' %}" class="panel-action">View All</a>
+      </div>
+      {% if notices %}
+        {% for notice in notices|slice:":4" %}
+        <div class="notice-item">
+          <div class="notice-dot {% if notice.priority == 'urgent' %}red{% elif notice.priority == 'important' %}amber{% else %}blue{% endif %}"></div>
+          <div>
+            <div class="notice-title">{{ notice.title }}</div>
+            <div class="notice-meta">{{ notice.posted_by }} &middot; {{ notice.created|date:"d M Y" }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state"><div class="es-icon">🔔</div><p>No notices yet</p></div>
+      {% endif %}
+    </div>
+    {% elif section == 'results' %}
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <div class="icon">📊</div> Semester Results
+    </div>
+  </div>
+
+  <div class="empty-state">
+    <div class="es-icon">🎓</div>
+
+    <h3 style="margin-bottom:10px;">View Your Results</h3>
+
+    <p style="margin-bottom:20px;">
+      Your results are published on the official university portal.
+      Click below to access them securely.
+    </p>
+
+    <a href="https://uucms.karnataka.gov.in/login/index"
+       target="_blank"
+       class="btn btn-primary"
+       style="padding:12px 20px;">
+       🔗 Go to Results Portal
+    </a>
+  </div>
+
+</div>
+
+    <!-- Quick Access -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="icon">⚡</div> Quick Access</div>
+      </div>
+      <div class="quick-grid">
+        <a href="{% url 'subjects' %}" class="quick-card"><div class="qicon">📚</div><div class="qlabel">Subjects</div></a>
+        <a href="{% url 'timetable' %}" class="quick-card"><div class="qicon">🗓️</div><div class="qlabel">Timetable</div></a>
+        <a href="{% url 'materials' %}" class="quick-card"><div class="qicon">📁</div><div class="qlabel">Materials</div></a>
+        <a href="{% url 'attendance' %}" class="quick-card"><div class="qicon">📊</div><div class="qlabel">Attendance</div></a>
+        <a href="{% url 'notices' %}" class="quick-card"><div class="qicon">🔔</div><div class="qlabel">Notices</div></a>
+        <a href="{% url 'profile' %}" class="quick-card"><div class="qicon">👤</div><div class="qlabel">Profile</div></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Announcements preview -->
+  {% if announcements %}
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">📢</div> Latest Announcements</div>
+      <a href="{% url 'announcements' %}" class="panel-action">View All</a>
+    </div>
+    {% for ann in announcements %}
+    <div class="notice-item">
+      <div class="notice-dot green"></div>
+      <div>
+        <div class="notice-title">{{ ann.title }}</div>
+        <div class="notice-meta">
+          {% if ann.teacher %}{{ ann.teacher.name }}{% else %}Admin{% endif %} &middot; {{ ann.created|date:"d M Y" }}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ── SUBJECTS ── -->
+  {% elif section == 'subjects' %}
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">📚</div> Enrolled Subjects</div>
+      {% if role == 'student' %}
+        <div class="chip chip-accent">Semester {{ student.semester.number }}</div>
+      {% endif %}
+    </div>
+    {% if subjects %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Subject Name</th>
+          <th>Code</th>
+          <th>Credits</th>
+          <th>Faculty</th>
+          <th>Semester</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for subj in subjects %}
+        <tr>
+          <td>{{ forloop.counter|stringformat:"02d" }}</td>
+          <td><strong>{{ subj.name }}</strong></td>
+          <td><span class="subject-badge">{{ subj.code|default:"—" }}</span></td>
+          <td>{{ subj.credits }}</td>
+          <td>{% if subj.teacher %}{{ subj.teacher.name }}{% else %}<span style="color:var(--muted);">TBA</span>{% endif %}</td>
+          <td>Sem {{ subj.semester.number }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state"><div class="es-icon">📚</div><p>No subjects assigned for your semester yet.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- ── ATTENDANCE ── -->
+  {% elif section == 'attendance' %}
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">📊</div> Attendance Report</div>
+      <div class="chip chip-amber">Min Required: 75%</div>
+    </div>
+    {% if attendance_data %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Total Classes</th>
+          <th>Attended</th>
+          <th>Attendance %</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in attendance_data %}
+        <tr>
+          <td><strong>{{ a.subject.name }}</strong></td>
+          <td>{{ a.total_classes }}</td>
+          <td>{{ a.attended }}</td>
+          <td>
+            <div class="progress-wrap">
+              <div class="progress-bar">
+                <div class="progress-fill {% if a.percentage >= 75 %}green{% elif a.percentage >= 60 %}blue{% else %}danger{% endif %}" style="width:{{ a.percentage }}%"></div>
+              </div>
+              <div class="progress-pct" style="color:{% if a.percentage >= 75 %}var(--accent3){% elif a.percentage >= 60 %}var(--accent){% else %}var(--danger){% endif %};">{{ a.percentage }}%</div>
+            </div>
+          </td>
+          <td>
+            {% if a.percentage >= 85 %}
+              <span class="chip chip-green" style="font-size:.72rem;padding:3px 10px;">Safe</span>
+            {% elif a.percentage >= 75 %}
+              <span class="chip chip-accent" style="font-size:.72rem;padding:3px 10px;">Good</span>
+            {% elif a.percentage >= 60 %}
+              <span class="chip chip-amber" style="font-size:.72rem;padding:3px 10px;">Warning</span>
+            {% else %}
+              <span class="chip" style="background:rgba(244,63,94,0.1);color:#f43f5e;border:1px solid rgba(244,63,94,0.2);font-size:.72rem;padding:3px 10px;">At Risk</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state"><div class="es-icon">📊</div><p>No attendance records found.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- ── TIMETABLE ── -->
+{% elif section == 'timetable' %}
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <div class="icon">🗓️</div> Timetable
+    </div>
+
+    {% if role == 'student' %}
+      <div class="chip chip-accent">
+        Semester {{ student.semester.number }}
+      </div>
+    {% endif %}
+  </div>
+
+  {% if timeslots %}
+  <div style="overflow-x:auto;padding:1rem 0.5rem;">
+    <div class="timetable-grid">
+
+      <!-- HEADER -->
+      <div class="timetable-cell timetable-header">Time</div>
+      {% for day in days %}
+        <div class="timetable-cell timetable-header">{{ day }}</div>
+      {% endfor %}
+
+      <!-- DATA -->
+      {% for slot in timeslots %}
+
+        <!-- 🔸 SHORT BREAK AFTER 2nd PERIOD -->
+        {% if forloop.counter == 3 %}
+          <div class="timetable-cell timetable-time break-cell">
+            Short Break
+          </div>
+          {% for day in days %}
+            <div class="timetable-cell break-cell">☕</div>
+          {% endfor %}
+        {% endif %}
+
+        <!-- 🔸 LUNCH BREAK AFTER 4th PERIOD -->
+        {% if forloop.counter == 5 %}
+          <div class="timetable-cell timetable-time lunch-cell">
+            Lunch Break
+          </div>
+          {% for day in days %}
+            <div class="timetable-cell lunch-cell">🍴</div>
+          {% endfor %}
+        {% endif %}
+
+        <!-- NORMAL SLOT -->
+        <div class="timetable-cell timetable-time">
+          {{ slot.0|time:"h:i A" }} - {{ slot.1|time:"h:i A" }}
+        </div>
+
+        {% for day in days %}
+          <div class="timetable-cell">
+            {% with day_data=timetable_matrix|get_item:slot %}
+              {% if day_data and day_data|get_item:day %}
+                
+                {% with entry=day_data|get_item:day %}
+                  <div class="tclass">
+                      <strong>{{ entry.subject.name|truncatechars:20 }}</strong><br>
+                      <small style="color:#9ca3af;">
+          {{ entry.subject.code }}
+          {% if entry.room %} · {{ entry.room }}{% endif %}
+          </small>
+          </div>
+                {% endwith %}
+
+              {% else %}
+                <span style="color:#6b7280;">-</span>
+              {% endif %}
+            {% endwith %}
+          </div>
+        {% endfor %}
+
+      {% endfor %}
+
+    </div>
+  </div>
+
+  {% else %}
+    <div class="empty-state">
+      <div class="es-icon">🗓️</div>
+      <p>No timetable available. Ask your admin to add schedule.</p>
+    </div>
+  {% endif %}
+</div>
+
+  <!-- ── MATERIALS ── -->
+  {% elif section == 'materials' %}
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">📁</div> Study Materials</div>
+      <div class="chip chip-accent">{{ materials|length }} File{{ materials|length|pluralize }}</div>
+    </div>
+    {% if materials %}
+      {% for m in materials %}
+      <div class="material-item">
+        <div class="file-icon">
+          {% with ext=m.file.name|lower %}
+            {% if ".pdf" in ext %}📄{% elif ".ppt" in ext %}📊{% elif ".doc" in ext %}📝{% elif ".mp4" in ext or ".avi" in ext %}🎥{% elif ".zip" in ext %}📦{% else %}📎{% endif %}
+          {% endwith %}
+        </div>
+        <div>
+          <div class="file-name">{{ m.title }}</div>
+          <div class="file-meta">{{ m.subject.name }} &middot; Uploaded {{ m.uploaded|date:"d M Y" }} &middot; {{ m.file_size_display }}</div>
+        </div>
+        <a href="{{ m.file.url }}" download class="download-btn">⬇ Download</a>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="es-icon">📁</div><p>No materials uploaded yet.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- ── NOTICES ── -->
+  {% elif section == 'notices' %}
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">🔔</div> Official Notices</div>
+      <div class="chip chip-amber">{{ notices|length }} Notice{{ notices|length|pluralize }}</div>
+    </div>
+    {% if notices %}
+      {% for notice in notices %}
+      <div class="notice-item">
+        <div class="notice-dot {% if notice.priority == 'urgent' %}red{% elif notice.priority == 'important' %}amber{% else %}blue{% endif %}"></div>
+        <div style="flex:1;">
+          <div class="notice-title">
+            {{ notice.title }}
+            {% if notice.priority == 'urgent' %}<span class="chip" style="background:rgba(244,63,94,0.1);color:#f43f5e;border:1px solid rgba(244,63,94,0.2);font-size:.68rem;padding:2px 8px;margin-left:8px;">URGENT</span>{% endif %}
+            {% if notice.priority == 'important' %}<span class="chip chip-amber" style="font-size:.68rem;padding:2px 8px;margin-left:8px;">IMPORTANT</span>{% endif %}
+          </div>
+          <div class="notice-meta">{{ notice.posted_by }} &middot; {{ notice.created|date:"d M Y" }}</div>
+          {% if notice.content %}<div style="font-size:.85rem;color:var(--muted2);margin-top:6px;">{{ notice.content }}</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="es-icon">🔔</div><p>No notices posted yet.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- ── ANNOUNCEMENTS ── -->
+  {% elif section == 'announcements' %}
+
+  {% if role == 'teacher' or role == 'admin' %}
+  <div class="panel" style="margin-bottom:1.5rem;">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">✍️</div> Post Announcement</div>
+      <span class="teacher-badge">{{ role|title }} Only</span>
+    </div>
+    <form method="POST" action="{% url 'post_announcement' %}" class="compose-area">
+      {% csrf_token %}
+      <div class="field">
+        <label>TITLE</label>
+        <div class="field-wrap">
+          <span class="field-icon">📌</span>
+          <input type="text" name="title" placeholder="Announcement title..." required>
+        </div>
+      </div>
+      <textarea name="content" placeholder="Write the announcement content for students..." rows="4" required></textarea>
+      <div class="compose-actions">
+        <button type="submit" class="btn btn-primary btn-sm" style="width:auto;">📢 Post Announcement</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">📢</div> Announcements</div>
+    </div>
+    {% if announcements %}
+      {% for ann in announcements %}
+      <div class="notice-item">
+        <div class="notice-dot green"></div>
+        <div>
+          <div class="notice-title">{{ ann.title }}</div>
+          <div class="notice-meta">
+            {% if ann.teacher %}{{ ann.teacher.name }}{% else %}Admin{% endif %} &middot; {{ ann.created|date:"d M Y, H:i" }}
+          </div>
+          {% if ann.content %}<div style="font-size:.85rem;color:var(--muted2);margin-top:6px;">{{ ann.content }}</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state"><div class="es-icon">📢</div><p>No announcements yet.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- ── PROFILE ── -->
+  {% elif section == 'complaints' %}
+  <div class="cards-row complaints-layout">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="icon">Form</div> Register Complaint</div>
+        <div class="chip chip-amber">Student Support</div>
+      </div>
+      <form method="POST" action="{% url 'complaints' %}" class="complaint-form">
+        {% csrf_token %}
+        <div class="field">
+          <label>SUBJECT</label>
+          <div class="field-wrap">
+            <span class="field-icon">#</span>
+            <input type="text" name="subject" placeholder="Brief title of your complaint" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>CATEGORY</label>
+          <div class="field-wrap">
+            <span class="field-icon">@</span>
+            <select name="category" required>
+              {% for value, label in complaint_categories %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>DESCRIPTION</label>
+          <textarea name="description" rows="6" placeholder="Describe the issue clearly so the admin can help faster." required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:auto;">Submit Complaint</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="icon">List</div> My Complaints</div>
+        <div class="chip chip-accent">{{ complaints|length }} Complaint{{ complaints|length|pluralize }}</div>
+      </div>
+      {% if complaints %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for complaint in complaints %}
+          <tr>
+            <td>
+              <strong>{{ complaint.subject }}</strong>
+              <div class="table-subtext">{{ complaint.description|truncatechars:90 }}</div>
+            </td>
+            <td>{{ complaint.get_category_display }}</td>
+            <td>
+              {% if complaint.status == 'resolved' %}
+              <span class="chip chip-green" style="font-size:.72rem;padding:3px 10px;">Resolved</span>
+              {% elif complaint.status == 'in_progress' %}
+              <span class="chip chip-amber" style="font-size:.72rem;padding:3px 10px;">In Progress</span>
+              {% else %}
+              <span class="chip chip-accent" style="font-size:.72rem;padding:3px 10px;">Submitted</span>
+              {% endif %}
+            </td>
+            <td>{{ complaint.created|date:"d M Y, H:i" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-state"><div class="es-icon">!</div><p>No complaints submitted yet.</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% elif section == 'profile' %}
+  <div class="panel">
+    <div class="profile-hero">
+      <div class="profile-avatar">
+        {% if role == 'student' %}{{ student.name|first|upper }}
+        {% elif role == 'teacher' %}{{ teacher.name|first|upper }}
+        {% else %}A{% endif %}
+      </div>
+      <div>
+        <div class="profile-name">
+          {% if role == 'student' %}{{ student.name }}
+          {% elif role == 'teacher' %}{{ teacher.name }}
+          {% else %}Administrator{% endif %}
+        </div>
+        <div class="profile-role">
+          {% if role == 'student' %}Undergraduate Student &middot; {{ student.course.name }}
+          {% elif role == 'teacher' %}Faculty &middot; {{ teacher.department }}
+          {% else %}System Administrator{% endif %}
+        </div>
+        <div class="profile-chips">
+          {% if role == 'student' %}
+            <div class="chip chip-accent">Semester {{ student.semester.number }}</div>
+            <div class="chip chip-green">Active Enrollment</div>
+          {% elif role == 'teacher' %}
+            <div class="chip chip-amber">Teacher</div>
+          {% else %}
+            <div class="chip chip-amber">Admin</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      {% if role == 'student' %}
+        <div class="info-row"><div class="info-label">Full Name</div><div class="info-value">{{ student.name }}</div></div>
+        <div class="info-row"><div class="info-label">Student ID</div><div class="info-value">{{ student.student_id }}</div></div>
+        <div class="info-row"><div class="info-label">Email</div><div class="info-value">{{ student.email }}</div></div>
+        <div class="info-row"><div class="info-label">Course</div><div class="info-value">{{ student.course.name }}</div></div>
+        <div class="info-row"><div class="info-label">Semester</div><div class="info-value">Semester {{ student.semester.number }}</div></div>
+        <div class="info-row"><div class="info-label">Phone</div><div class="info-value">{{ student.phone|default:"Not provided" }}</div></div>
+      {% elif role == 'teacher' %}
+        <div class="info-row"><div class="info-label">Full Name</div><div class="info-value">{{ teacher.name }}</div></div>
+        <div class="info-row"><div class="info-label">Teacher ID</div><div class="info-value">{{ teacher.teacher_id }}</div></div>
+        <div class="info-row"><div class="info-label">Email</div><div class="info-value">{{ teacher.email }}</div></div>
+        <div class="info-row"><div class="info-label">Department</div><div class="info-value">{{ teacher.department|default:"Not set" }}</div></div>
+        <div class="info-row"><div class="info-label">Phone</div><div class="info-value">{{ teacher.phone|default:"Not provided" }}</div></div>
+      {% else %}
+        <div class="info-row"><div class="info-label">Username</div><div class="info-value">{{ user.username }}</div></div>
+        <div class="info-row"><div class="info-label">Email</div><div class="info-value">{{ user.email }}</div></div>
+        <div class="info-row"><div class="info-label">Role</div><div class="info-value">Administrator</div></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="icon">🔐</div> Account Security</div>
+    </div>
+    <div style="padding:1.4rem;display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="{% url 'forgot_password' %}" class="btn btn-ghost">Change Password</a>
+      <a href="{% url 'logout' %}" class="btn" style="background:rgba(244,63,94,0.1);color:#f43f5e;border:1px solid rgba(244,63,94,0.2);">Sign Out</a>
+      {% if role == 'admin' %}<a href="/admin/" class="btn btn-ghost">Django Admin Panel</a>{% endif %}
+    </div>
+  </div>
+
+  {% endif %}
+
+</div><!-- /main-content -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var h = new Date().getHours();
+  var g = h < 12 ? 'Good Morning,' : h < 17 ? 'Good Afternoon,' : 'Good Evening,';
+  var el = document.getElementById('greeting-text');
+  if (el) el.textContent = g;
+});
+</script>
+{% endblock %}
