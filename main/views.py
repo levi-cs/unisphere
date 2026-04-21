@@ -2,6 +2,7 @@ import random
 import string
 import zipfile
 import os
+from django.db.models import Avg
 
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
@@ -578,4 +579,20 @@ def view_feedback(request):
 def results_view(request):
     ctx = base_context(request)
     ctx['section'] = 'results'   # 🔥 THIS IS THE KEY
+    return render(request, 'main/dashboard.html', ctx)
+
+@login_required
+def dashboard_view(request):
+    ctx = base_context(request)
+
+    if request.user.is_authenticated:
+        student = ctx.get('student')
+
+        if student:
+            avg_attendance = Attendance.objects.filter(student=student).aggregate(
+                avg=Avg('percentage')  # or your field name
+            )['avg']
+
+            ctx['avg_attendance'] = round(avg_attendance, 2) if avg_attendance else 0
+
     return render(request, 'main/dashboard.html', ctx)

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎓 UniSphere — Official College Student Portal
 
 A full-stack Django student portal for colleges with Student, Teacher, and Admin roles.
@@ -124,3 +125,7 @@ DEFAULT_FROM_EMAIL  = 'UniSphere <your-email@gmail.com>'
 1. Go to `http://127.0.0.1:8000/admin/`
 2. Login with `admin` / `admin123`
 3. Add: Courses, Semesters, Students, Teachers, Subjects, Attendance, Materials, Notices, Timetable
+=======
+# unisphere
+UniSphere – A student management system with attendance, timetable, materials, and communication features.
+>>>>>>> ddb0a64fec07917bb70b647d4da82b4eb81ef392

@@ -159,13 +159,14 @@
     <div class="stat-card">
       <div class="stat-icon stat-icon-green">📊</div>
       <div class="stat-value">
-        {% if attendance_data %}
-          {% with total=0 count=0 %}
-            {% for a in attendance_data %}{% endfor %}
-          {% endwith %}
-          —
-        {% else %}{{ avg_attendance }}%{% endif %}
-      </div>
+  {% if attendance_data %}
+    {% with total=0 count=0 %}
+      {% for a in attendance_data %}{% endfor %}
+    {% endwith %}
+  {% else %}
+    {{ avg_attendance }}
+  {% endif %}
+</div>
       <div class="stat-label">Avg Attendance</div>
     </div>
     <div class="stat-card">
