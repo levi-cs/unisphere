@@ -2,8 +2,9 @@ import random
 import string
 import zipfile
 import os
-from django.db.models import Avg
+from collections import defaultdict
 
+from django.db.models import Avg
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -83,7 +84,7 @@ def login_view(request):
                 if user:
                     login(request, user)
                     return redirect('dashboard')
-            except:
+            except Exception:
                 pass
 
             messages.error(request, 'Invalid teacher login')
@@ -98,7 +99,7 @@ def login_view(request):
                 if user:
                     login(request, user)
                     return redirect('dashboard')
-            except:
+            except Exception:
                 pass
 
             messages.error(request, 'Invalid student login')
@@ -129,13 +130,14 @@ def base_context(request):
 
 
 # ─────────────────────────────────────────
-# DASHBOARD
+# DASHBOARD (single, complete view)
 # ─────────────────────────────────────────
 @login_required
 def dashboard_view(request):
     ctx = base_context(request)
 
-    ctx['section'] = 'overview'
+    section = request.GET.get('section', 'overview')
+    ctx['section'] = section
     ctx['notices'] = Notice.objects.all()[:5]
     ctx['announcements'] = Announcement.objects.all()[:3]
 
@@ -143,35 +145,95 @@ def dashboard_view(request):
         student = ctx['student']
 
         # Subjects
-        ctx['subjects'] = Subject.objects.filter(
-            semester=student.semester
-        )
+        ctx['subjects'] = Subject.objects.filter(semester=student.semester)
 
         # Attendance
         attendance_qs = Attendance.objects.filter(student=student)
         ctx['attendance_data'] = attendance_qs
 
-        if attendance_qs.exists():
-            total = sum(a.percentage for a in attendance_qs)
-            ctx['avg_attendance'] = round(total / attendance_qs.count())
+        total_classes = sum(a.total_classes or 0 for a in attendance_qs)
+        attended_classes = sum(a.attended or 0 for a in attendance_qs)
+
+        if total_classes > 0:
+            ctx['avg_attendance'] = round((attended_classes / total_classes) * 100, 2)
         else:
             ctx['avg_attendance'] = 0
 
         # Materials
-        ctx['materials_count'] = Material.objects.filter(
-            subject__semester=student.semester
-        ).count()
+        ctx['materials'] = Material.objects.filter(subject__semester=student.semester)
+        ctx['materials_count'] = ctx['materials'].count()
+
+        # Complaints
+        ctx['complaints'] = Complaint.objects.filter(student=student)
+        ctx['complaint_categories'] = Complaint._meta.get_field('category').choices
+            
+
+        # Timetable
+        entries = Timetable.objects.filter(semester=student.semester)
+        timeslots = sorted(set([(e.start_time, e.end_time) for e in entries]))
+        timetable_matrix = defaultdict(dict)
+        for e in entries:
+            timetable_matrix[(e.start_time, e.end_time)][e.day] = e
+        ctx['timeslots'] = timeslots
+        ctx['timetable_matrix'] = timetable_matrix
+        ctx['days'] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
     elif ctx['role'] == 'teacher':
-        ctx['subjects'] = Subject.objects.filter(
-            teacher=ctx['teacher']
-        )
+        teacher = ctx['teacher']
+
+        ctx['subjects'] = Subject.objects.filter(teacher=teacher)
+        ctx['materials'] = Material.objects.filter(subject__teacher=teacher)
+        ctx['materials_count'] = ctx['materials'].count()
+        ctx['complaints'] = Complaint.objects.all().order_by('-created')
+        # Timetable for teacher
+        entries = Timetable.objects.filter(subject__teacher=teacher)
+        timeslots = sorted(set([(e.start_time, e.end_time) for e in entries]))
+        timetable_matrix = defaultdict(dict)
+        for e in entries:
+            timetable_matrix[(e.start_time, e.end_time)][e.day] = e
+        ctx['timeslots'] = timeslots
+        ctx['timetable_matrix'] = timetable_matrix
+        ctx['days'] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+    elif ctx['role'] == 'admin':
+        ctx['subjects'] = Subject.objects.all()
+        ctx['materials'] = Material.objects.all()
+        ctx['materials_count'] = ctx['materials'].count()
+
+        entries = Timetable.objects.all()
+        timeslots = sorted(set([(e.start_time, e.end_time) for e in entries]))
+        timetable_matrix = defaultdict(dict)
+        for e in entries:
+            timetable_matrix[(e.start_time, e.end_time)][e.day] = e
+        ctx['timeslots'] = timeslots
+        ctx['timetable_matrix'] = timetable_matrix
+        ctx['days'] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+    # Handle POST for complaints
+    if request.method == 'POST' and section == 'complaints':
+        if ctx['role'] == 'student':
+            subject = (request.POST.get('subject') or '').strip()
+            category = request.POST.get('category') or 'other'
+            description = (request.POST.get('description') or '').strip()
+
+            if not subject or not description:
+                messages.error(request, "Subject and description are required.")
+            else:
+                Complaint.objects.create(
+                    student=ctx['student'],
+                    subject=subject,
+                    category=category,
+                    description=description,
+                )
+                messages.success(request, "Complaint submitted successfully.")
+                return redirect('/dashboard/?section=complaints')
 
     return render(request, 'main/dashboard.html', ctx)
 
 
 @login_required
 def complaints_view(request):
+    """Standalone complaints URL — redirects to dashboard complaints section."""
     ctx = base_context(request)
     ctx['section'] = 'complaints'
 
@@ -194,149 +256,15 @@ def complaints_view(request):
                 description=description,
             )
             messages.success(request, "Complaint submitted successfully.")
-            return redirect('complaints')
+            return redirect('dashboard?section=complaints')
 
     ctx['complaints'] = Complaint.objects.filter(student=ctx['student'])
-    ctx['complaint_categories'] = Complaint.CATEGORY_CHOICES
-    return render(request, 'main/dashboard.html', ctx)
+    ctx['complaint_categories'] = Complaint._meta.get_field('category').choices
+    ctx['notices'] = Notice.objects.all()[:5]
+    ctx['announcements'] = Announcement.objects.all()[:3]
+    ctx['subjects'] = Subject.objects.filter(semester=ctx['student'].semester)
+    return redirect('dashboard?section=complaints')
 
-
-# ─────────────────────────────────────────
-# SUBJECTS
-# ─────────────────────────────────────────
-@login_required
-def subjects_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'subjects'
-
-    if ctx['role'] == 'student':
-        ctx['subjects'] = Subject.objects.filter(
-            semester=ctx['student'].semester
-        )
-
-    elif ctx['role'] == 'teacher':
-        ctx['subjects'] = Subject.objects.filter(
-            teacher=ctx['teacher']
-        )
-
-    else:
-        ctx['subjects'] = Subject.objects.all()
-
-    return render(request, 'main/dashboard.html', ctx)
-
-
-# ─────────────────────────────────────────
-# ATTENDANCE
-# ─────────────────────────────────────────
-@login_required
-def attendance_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'attendance'
-
-    if ctx['role'] == 'student':
-        ctx['attendance_data'] = Attendance.objects.filter(
-            student=ctx['student']
-        )
-
-    return render(request, 'main/dashboard.html', ctx)
-
-
-# ─────────────────────────────────────────
-# MATERIALS
-# ─────────────────────────────────────────
-@login_required
-def materials_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'materials'
-
-    if ctx['role'] == 'student':
-        ctx['materials'] = Material.objects.filter(
-            subject__semester=ctx['student'].semester
-        )
-
-    elif ctx['role'] == 'teacher':
-        ctx['materials'] = Material.objects.filter(
-            subject__teacher=ctx['teacher']
-        )
-
-    else:
-        ctx['materials'] = Material.objects.all()
-
-    return render(request, 'main/dashboard.html', ctx)
-
-
-# ─────────────────────────────────────────
-# NOTICES
-# ─────────────────────────────────────────
-@login_required
-def notices_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'notices'
-    ctx['notices'] = Notice.objects.all()
-
-    return render(request, 'main/dashboard.html', ctx)
-
-
-# ─────────────────────────────────────────
-# TIMETABLE
-# ─────────────────────────────────────────
-from collections import defaultdict
-
-@login_required
-def timetable_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'timetable'
-
-    if ctx['role'] == 'student':
-        entries = Timetable.objects.filter(
-            semester=ctx['student'].semester
-        )
-
-    elif ctx['role'] == 'teacher':
-        entries = Timetable.objects.filter(
-            subject__teacher=ctx['teacher']
-        )
-
-    else:
-        entries = Timetable.objects.all()
-
-    # 🔥 STEP 1: unique sorted time slots
-    timeslots = sorted(set([(e.start_time, e.end_time) for e in entries]))
-
-    # 🔥 STEP 2: create matrix
-    timetable_matrix = defaultdict(dict)
-
-    for e in entries:
-        key = (e.start_time, e.end_time)
-        timetable_matrix[key][e.day] = e
-
-    ctx['timeslots'] = timeslots
-    ctx['timetable_matrix'] = timetable_matrix
-    ctx['days'] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
-    return render(request, 'main/dashboard.html', ctx)
-
-# ─────────────────────────────────────────
-# ANNOUNCEMENTS
-# ─────────────────────────────────────────
-@login_required
-def announcements_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'announcements'
-    ctx['announcements'] = Announcement.objects.all()
-
-    return render(request, 'main/dashboard.html', ctx)
-
-
-# ─────────────────────────────────────────
-# PROFILE
-# ─────────────────────────────────────────
-@login_required
-def profile_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'profile'
-
-    return render(request, 'main/dashboard.html', ctx)
 # ─────────────────────────────────────────
 # SIGNUP
 # ─────────────────────────────────────────
@@ -353,7 +281,6 @@ def signup_view(request):
             messages.error(request, "Student already exists")
             return redirect('signup')
 
-        # Save temporarily
         request.session['signup_data'] = {
             'name': name,
             'student_id': student_id,
@@ -388,7 +315,6 @@ def verify_otp_view(request):
             otp_obj.is_used = True
             otp_obj.save()
 
-            # Create user
             user = User.objects.create_user(
                 username=data['student_id'],
                 email=data['email'],
@@ -411,14 +337,14 @@ def verify_otp_view(request):
             messages.success(request, "Account created successfully")
             return redirect('login')
 
-        except:
+        except Exception:
             messages.error(request, "Invalid OTP")
 
     return render(request, 'main/verify_otp.html')
 
 
 # ─────────────────────────────────────────
-# FORGOT PASSWORD
+# FORGOT / RESET PASSWORD
 # ─────────────────────────────────────────
 def forgot_password_view(request):
     if request.method == 'POST':
@@ -434,9 +360,6 @@ def forgot_password_view(request):
     return render(request, 'main/forgot_password.html')
 
 
-# ─────────────────────────────────────────
-# RESET PASSWORD
-# ─────────────────────────────────────────
 def reset_password_view(request):
     email = request.session.get('reset_email')
 
@@ -462,14 +385,14 @@ def reset_password_view(request):
             messages.success(request, "Password reset successful")
             return redirect('login')
 
-        except:
+        except Exception:
             messages.error(request, "Invalid OTP")
 
     return render(request, 'main/reset_password.html')
 
 
 # ─────────────────────────────────────────
-# TEACHER ANNOUNCEMENT
+# TEACHER: POST ANNOUNCEMENT
 # ─────────────────────────────────────────
 @login_required
 def post_announcement_view(request):
@@ -485,13 +408,12 @@ def post_announcement_view(request):
             )
             messages.success(request, "Announcement posted")
 
-    return redirect('announcements')
+    return redirect('dashboard?section=announcements')
 
-import zipfile
-import os
-from django.conf import settings
-from django.core.files import File
 
+# ─────────────────────────────────────────
+# UPLOAD MATERIALS ZIP
+# ─────────────────────────────────────────
 @login_required
 def upload_materials_zip(request):
     if request.method == 'POST':
@@ -500,24 +422,21 @@ def upload_materials_zip(request):
 
         if not zip_file or not subject_id:
             messages.error(request, "Missing file or subject")
-            return redirect('materials')
+            return redirect('dashboard?section=materials')
 
         subject = Subject.objects.get(id=subject_id)
 
-        # Save zip temporarily
         zip_path = os.path.join(settings.MEDIA_ROOT, zip_file.name)
         with open(zip_path, 'wb+') as f:
             for chunk in zip_file.chunks():
                 f.write(chunk)
 
-        # Extract zip
         extract_folder = os.path.join(settings.MEDIA_ROOT, 'materials_temp')
         os.makedirs(extract_folder, exist_ok=True)
 
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_folder)
 
-        # Save each file as Material
         for file_name in os.listdir(extract_folder):
             file_path = os.path.join(extract_folder, file_name)
 
@@ -530,15 +449,16 @@ def upload_materials_zip(request):
                     material.file.save(file_name, File(f), save=True)
 
         messages.success(request, "Materials uploaded successfully")
-        return redirect('materials')
+        return redirect('dashboard?section=materials')
 
     ctx = base_context(request)
     ctx['subjects'] = Subject.objects.all()
     return render(request, 'main/upload_materials.html', ctx)
 
-# ==============================
-# STUDENT: SUBMIT FEEDBACK
-# ==============================
+
+# ─────────────────────────────────────────
+# FEEDBACK (legacy routes)
+# ─────────────────────────────────────────
 @login_required
 def submit_feedback(request):
     if not hasattr(request.user, 'student'):
@@ -551,19 +471,16 @@ def submit_feedback(request):
         Complaint.objects.create(
             student=request.user.student,
             subject=subject,
-            message=message
+            description=message or ''
         )
 
         messages.success(request, "Feedback submitted successfully")
-        return redirect('feedback')
+        return redirect('/dashboard/?section=complaints')
 
     ctx = base_context(request)
     return render(request, 'main/feedback.html', ctx)
 
 
-# ==============================
-# TEACHER: VIEW FEEDBACK
-# ==============================
 @login_required
 def view_feedback(request):
     if not hasattr(request.user, 'teacher'):
@@ -576,23 +493,15 @@ def view_feedback(request):
     return render(request, 'main/view_feedback.html', ctx)
 
 @login_required
-def results_view(request):
-    ctx = base_context(request)
-    ctx['section'] = 'results'   # 🔥 THIS IS THE KEY
-    return render(request, 'main/dashboard.html', ctx)
+def post_notice(request):
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        content = request.POST.get('content')
 
-@login_required
-def dashboard_view(request):
-    ctx = base_context(request)
+        Notice.objects.create(
+            title=title,
+            content=content
+        )
+        return redirect('/dashboard/?section=notices')
 
-    if request.user.is_authenticated:
-        student = ctx.get('student')
-
-        if student:
-            avg_attendance = Attendance.objects.filter(student=student).aggregate(
-                avg=Avg('percentage')  # or your field name
-            )['avg']
-
-            ctx['avg_attendance'] = round(avg_attendance, 2) if avg_attendance else 0
-
-    return render(request, 'main/dashboard.html', ctx)
+    return render(request, 'main/post_notice.html')

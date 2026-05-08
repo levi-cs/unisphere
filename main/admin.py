@@ -27,7 +27,7 @@ class StudentResource(resources.ModelResource):
         # 🔹 CREATE USER
         if email:
             user, created = User.objects.get_or_create(
-                username=email,
+                username=student_id,
                 defaults={'email': email}
             )
 
@@ -173,7 +173,6 @@ class ComplaintAdmin(admin.ModelAdmin):
 
 
 from django import forms
-from django.forms.widgets import TimeInput
 
 class TimetableAdminForm(forms.ModelForm):
     class Meta:

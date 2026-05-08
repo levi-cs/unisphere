@@ -1,0 +1,42 @@
+{% extends 'main/base.html' %}
+
+{% block body %}
+
+<div class="cards-row" style="max-width:900px; margin:auto;">
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <div class="icon">📢</div> Post Notice
+      </div>
+      <div class="chip chip-amber">Teacher / Admin</div>
+    </div>
+
+    <form method="POST" class="complaint-form">
+      {% csrf_token %}
+
+      <div class="field">
+        <label>TITLE</label>
+        <div class="field-wrap">
+          <span class="field-icon">📌</span>
+          <input type="text" name="title" placeholder="Enter notice title..." required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>CONTENT</label>
+        <textarea name="content" rows="6" placeholder="Write notice content..." required></textarea>
+      </div>
+
+      <div style="margin-top:15px;">
+        <button type="submit" class="btn btn-primary">
+          📢 Post Notice
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+</div>
+
+{% endblock %}
