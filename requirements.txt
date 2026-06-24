@@ -15,11 +15,7 @@ Jinja2==3.1.6
 MarkupSafe==3.0.3
 packaging==26.1
 pillow==12.2.0
-playsound==1.2.2
 psutil==7.0.0
-pypiwin32==223
-pyttsx3==2.99
-pywin32==311
 sqlparse==0.5.5
 tablib==3.9.0
 tzdata==2025.3
