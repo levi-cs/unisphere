@@ -1,4 +1,4 @@
-﻿asgiref==3.11.1
+asgiref==3.11.1
 blinker==1.9.0
 certifi==2026.2.25
 click==8.3.1
