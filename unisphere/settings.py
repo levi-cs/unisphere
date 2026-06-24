@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-
+import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-unisphere-change-me-in-production-xyz123abc'
@@ -71,10 +71,9 @@ WSGI_APPLICATION = 'unisphere.wsgi.application'
 # 🔹 DATABASE (UNCHANGED)
 # ==============================
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get("DATABASE_URL")
+    )
 }
 
 
@@ -145,3 +144,4 @@ EMAIL_HOST_USER = 'your-email@gmail.com'
 EMAIL_HOST_PASSWORD = 'your-app-password'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+ALLOWED_HOSTS = ['*']
